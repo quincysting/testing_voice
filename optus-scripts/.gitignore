@@ -1,0 +1,20 @@
+# Ignore environment files with sensitive data
+.env
+.env.local
+.env.production
+.env.staging
+.env.ssm
+.env.secrets
+
+# Ignore Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Ignore Terraform directory
+.terraform/
+
+# Ignore Terraform lock files (optional - some teams prefer to commit these)
+# .terraform.lock.hcl
+
+# Ignore any other sensitive files
+secrets.tf 

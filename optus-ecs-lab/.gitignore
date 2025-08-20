@@ -1,0 +1,7 @@
+# Ignore Terraform secrets file
+terraform/secrets.tf
+
+terraform/terraform.tfstate*
+
+# Ignore local environment variables file
+.env.local

@@ -111,11 +111,5 @@ module "vms_tactical" {
     routeable = {}
   }
 
-  //enable cloud watch
-  enable_flow_log              = true
-  flow_log_destination_type    = "cloud-watch-logs"
-  flow_log_traffic_type        = "ALL"
-  flow_log_retention_days      = 30
-
   tags = local.tags
 }

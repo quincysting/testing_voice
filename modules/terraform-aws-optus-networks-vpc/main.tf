@@ -1,82 +1,3 @@
-# VPC Flow Logs Configuration
-resource "aws_flow_log" "vpc_flow_log" {
-  count = var.enable_flow_log ? 1 : 0
-
-  iam_role_arn    = var.flow_log_destination_type == "cloud-watch-logs" ? aws_iam_role.flow_log[0].arn : null
-  log_destination = var.flow_log_destination_type == "cloud-watch-logs" ? aws_cloudwatch_log_group.vpc_flow_log[0].arn : var.flow_log_s3_arn
-  log_destination_type = var.flow_log_destination_type
-  vpc_id          = aws_vpc.this.id
-  traffic_type    = var.flow_log_traffic_type
-
-  log_format = var.flow_log_format
-
-  tags = merge(var.tags, {
-    Name = "${var.vpc_name}-flow-logs"
-  })
-}
-
-# CloudWatch Log Group for VPC Flow Logs (only if using CloudWatch)
-resource "aws_cloudwatch_log_group" "vpc_flow_log" {
-  count = var.enable_flow_log && var.flow_log_destination_type == "cloud-watch-logs" ? 1 : 0
-
-  name              = "/aws/vpc/flowlogs/${var.vpc_name}"
-  retention_in_days = var.flow_log_retention_days
-
-  tags = merge(var.tags, {
-    Name = "${var.vpc_name}-flow-logs"
-  })
-}
-
-# IAM Role for VPC Flow Logs (only if using CloudWatch)
-resource "aws_iam_role" "flow_log" {
-  count = var.enable_flow_log && var.flow_log_destination_type == "cloud-watch-logs" ? 1 : 0
-
-  name = "${var.vpc_name}-flow-log-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "vpc-flow-logs.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  tags = merge(var.tags, {
-    Name = "${var.vpc_name}-flow-log-role"
-  })
-}
-
-# IAM Policy for VPC Flow Logs CloudWatch access
-resource "aws_iam_role_policy" "flow_log" {
-  count = var.enable_flow_log && var.flow_log_destination_type == "cloud-watch-logs" ? 1 : 0
-
-  name = "${var.vpc_name}-flow-log-policy"
-  role = aws_iam_role.flow_log[0].id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
-          "logs:DescribeLogGroups",
-          "logs:DescribeLogStreams"
-        ]
-        Effect = "Allow"
-        Resource = "*"
-      }
-    ]
-  })
-}
-
-# Existing VPC resources
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -131,7 +52,7 @@ locals {
       merge(route, {
         key         = "${k}-${route.destination}"
         route_table = k
-      })]]])
+  })]]])
 
   routes = { for route in local.routes_map : route.key => route }
 }
