@@ -1,0 +1,19 @@
+[
+    { "Key": "o_b_bu", "Value": "networks" },
+    { "Key": "o_b_pri-own", "Value": "alfred lam" },
+    { "Key": "o_b_bus-own", "Value": "james burden" },
+    { "Key": "o_t_app-plat", "Value": "networks" },
+    { "Key": "o_t_app", "Value": "voicemail" },
+    { "Key": "o_t_env", "Value": "gnp" },
+    { "Key": "o_t_app-own", "Value": "brian easson" },
+    { "Key": "o_t_tech-own", "Value": "serena feng" },
+    { "Key": "o_b_cc", "Value": "gk881infra" },
+    { "Key": "o_s_app-class", "Value": "cat2" },
+    { "Key": "o_b_project", "Value": "vms" },
+    { "Key": "o_s_data-class", "Value": "conf_non_pii" },
+    { "Key": "o_t_app-role", "Value": "app" },
+    { "Key": "o_a_avail", "Value": "24x7" },
+    { "Key": "o_s_sra", "Value": "00642" },
+    { "Key": "o_t_dep-mthd", "Value": "iac" },
+    { "Key": "o_t_lifecycle", "Value": "inbuild" }
+  ]

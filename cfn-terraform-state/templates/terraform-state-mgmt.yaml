@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Template for creating S3 bucket and DynamoDB table to hold Terraform state and locks
+Parameters:
+  DynamoDBTableName:
+    Type: String
+    Description: Dynamo DB table name
+  NoncurrentVersionExpirationInDays:
+    Type: Number
+    Default: 90
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - snd
+      - dev
+      - gnp
+      - prd
+      - pet
+  CostCenter:
+    Type: String
+  RoleName:
+    Type: String
+  PermissionsBoundary:
+    Type: String
+    Description: The ARN of the policy used to set the permissions boundary for the role.
+  RootPrincipal:
+    Type: String
+    Description: IAM root of the account
+    Default: "arn:aws:iam::607570804706:root"
+
+Resources:
+  TerraformStateS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "optus-terraform-state-${AWS::AccountId}"
+      AccessControl: Private
+      LoggingConfiguration:
+        LogFilePrefix: "access-logs-"
+        TargetObjectKeyFormat:
+          PartitionedPrefix:
+            PartitionDateSource: EventTime
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldVersions
+            NoncurrentVersionExpirationInDays: !Ref NoncurrentVersionExpirationInDays
+            Status: Enabled
+  S3BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref TerraformStateS3Bucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 's3:PutObject'
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref TerraformStateS3Bucket
+                - /*
+            Condition:
+              ArnLike:
+                'aws:SourceArn': !GetAtt TerraformStateS3Bucket.Arn
+              StringEquals:
+                'aws:SourceAccount': !Sub '${AWS::AccountId}'
+          - Action:
+              - 's3:*'
+            Effect: Deny
+            Principal: '*'
+            Resource:
+              - !Join
+                - ''
+                - - 'arn:aws:s3:::'
+                  - !Ref TerraformStateS3Bucket
+                  - /*
+              - !GetAtt TerraformStateS3Bucket.Arn
+            Condition:
+              Bool:
+                'aws:SecureTransport': "false"
+  TerraformStateLockDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref DynamoDBTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      ContributorInsightsSpecification:
+        Enabled: false
+      SSESpecification:
+        SSEEnabled: true
+  TerraformStateLockAssumeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      PermissionsBoundary: !Ref PermissionsBoundary
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowAccount
+            Effect: Allow
+            Principal:
+              AWS: !Ref RootPrincipal
+            Action:
+              - sts:AssumeRole
+          - Sid: AllowEC2
+            Effect: Allow
+            Principal:
+              Service: ["ec2.amazonaws.com"]
+            Action:
+              - sts:AssumeRole
+          - Sid: AllowRunner
+            Effect: Allow
+            Principal:
+              AWS: "arn:aws:iam::339712948801:root"
+            Condition:
+              ArnLike:
+                "aws:PrincipalArn": "arn:aws:iam::339712948801:role/ntwk-eng-assume-role-runner-eks-gnp-*"
+            Action:
+              - sts:AssumeRole
+      Description: Role to manage Terraform state
+      Policies:
+        - PolicyName: ManageTerraformState
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ListStateObjects
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt TerraformStateS3Bucket.Arn
+              - Sid: UpdateStateObjects
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub
+                  - ${Arn}/*
+                  - Arn: !GetAtt TerraformStateS3Bucket.Arn
+              - Sid: UpdateLockTable
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt TerraformStateLockDynamoDBTable.Arn
+ 
+Outputs:
+  TFStateS3Name:
+    Value: !Ref TerraformStateS3Bucket
+  TFStateS3Arn:
+    Value: !GetAtt TerraformStateS3Bucket.Arn
+  TFStateDBTableName:
+    Value: !Ref TerraformStateLockDynamoDBTable
+  TFStateDBTableArn:
+    Value: !GetAtt TerraformStateLockDynamoDBTable.Arn
+  RoleName:
+    Value: !Ref TerraformStateLockAssumeRole
+  IAMRoleArn:
+    Value: !GetAtt TerraformStateLockAssumeRole.Arn

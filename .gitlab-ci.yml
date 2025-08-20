@@ -1,0 +1,50 @@
+stages:
+  - plan
+  - apply
+
+variables:
+  TF_DESTROY: "False"
+  TF_DIRECTORY: ""
+
+default:
+  before_script: |
+    if [ -n "$TF_DIRECTORY" ]; then
+      echo "Changing to working directory: $TF_DIRECTORY"
+      cd $TF_DIRECTORY
+    else
+      echo "No TF_DIRECTORY set, exiting."
+      exit 1
+    fi
+
+    unset NO_PROXY
+    unset no_proxy
+    export no_proxy="169.254.169.254,localhost,.au.singtelgroup.net,.gnpaws.au.singtelgroup.net,.nix.au.singtelgroup.net,.csi.gnpaws.au.singtelgroup.net,.optus.com.au,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,.internal,.eks.amazonaws.com,127.0.0.1,docker,optus.gitlab-dedicated.com,ec2.ap-southeast-2.amazonaws.com"
+    export NO_PROXY="169.254.169.254,localhost,.au.singtelgroup.net,.gnpaws.au.singtelgroup.net,.nix.au.singtelgroup.net,.csi.gnpaws.au.singtelgroup.net,.optus.com.au,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,.internal,.eks.amazonaws.com,127.0.0.1,docker,optus.gitlab-dedicated.com,ec2.ap-southeast-2.amazonaws.com"
+
+    git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@optus.gitlab-dedicated.com".insteadOf "https://optus.gitlab-dedicated.com"
+  tags:
+    - ntwk-gnp
+
+tf_plan:
+  image:
+    name: 339712948801.dkr.ecr.ap-southeast-2.amazonaws.com/core-tooling-build:terraform-1.11.2
+  stage: plan
+  when: manual
+  script: |
+    terraform init
+    terraform plan -out terraform.plan
+  artifacts:
+    expire_in: 2 hrs
+    paths:
+      - $TF_DIRECTORY/terraform.plan
+
+tf_apply:
+  image:
+    name: 339712948801.dkr.ecr.ap-southeast-2.amazonaws.com/core-tooling-build:terraform-1.11.2
+  stage: apply
+  needs:
+    - tf_plan
+  when: manual
+  script: |
+    terraform init
+    terraform apply -auto-approve terraform.plan	

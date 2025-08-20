@@ -1,0 +1,22 @@
+[
+    {
+      "ParameterKey": "DynamoDBTableName",
+      "ParameterValue": "terraform-state"
+    },
+    {
+      "ParameterKey": "Environment",
+      "ParameterValue": "gnp"
+    },
+    {
+      "ParameterKey": "CostCenter",
+      "ParameterValue": "gk881infra"
+    },
+    {
+      "ParameterKey": "PermissionsBoundary",
+      "ParameterValue": "arn:aws:iam::607570804706:policy/POWERUSERBOUNDARYPOLICY"
+    },
+    {
+      "ParameterKey": "RoleName",
+      "ParameterValue": "terraform-state-mgmt"
+    }
+  ]
